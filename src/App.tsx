@@ -126,6 +126,21 @@ function ProductShowcase({ product, position, saved, onSave, onSelect }: { produ
   )
 }
 
+// Words people type for the same thing, so "phone" finds smartphones and "headphones" finds earbuds.
+const SEARCH_SYNONYMS: Record<string, string[]> = {
+  phone: ['smartphone'], mobile: ['smartphone'], earphone: ['earbuds'], headphone: ['earbuds'], tws: ['earbuds'],
+  watch: ['smartwatch'], shoe: ['shoes'], sneaker: ['shoes'], dryer: ['dryer'], cleanser: ['face wash', 'cleanser'],
+  facewash: ['face wash'], kurti: ['kurta'], speakers: ['speaker'],
+}
+const stem = (w: string) => w.replace(/(es|s)$/, '')
+function matchesSearch(p: Product, words: string[]) {
+  const hay = `${p.name} ${p.brand} ${p.category} ${p.subcategory} ${p.tags.join(' ')}`.toLowerCase()
+  return words.every((w) => {
+    const options = [w, stem(w), ...(SEARCH_SYNONYMS[w] ?? []), ...(SEARCH_SYNONYMS[stem(w)] ?? [])]
+    return options.some((o) => o.length > 1 && hay.includes(o))
+  })
+}
+
 function Home({ products, onSelect, saved, onSave, filters, setFilters, cartCount, onCart, onRetry }: {
   products: Load<Product[]>; onSelect: (product: Product) => void; saved: string[]; onSave: (id: string) => void
   filters: Filters; setFilters: (f: Filters) => void; cartCount: number; onCart: () => void; onRetry: () => void
@@ -141,10 +156,14 @@ function Home({ products, onSelect, saved, onSave, filters, setFilters, cartCoun
       if (filters.maxPrice != null && p.price > filters.maxPrice) return false
       if (filters.minPrice != null && p.price < filters.minPrice) return false
       if (!words.length) return true
-      const hay = `${p.name} ${p.brand} ${p.subcategory} ${p.tags.join(' ')}`.toLowerCase()
-      return words.every((w) => hay.includes(w))
+      return matchesSearch(p, words)
     })
   }, [all, filters])
+  const suggestions = filters.query.trim() ? shown.slice(0, 6) : []
+  const showResults = () => {
+    setSearchOpen(false)
+    document.getElementById('collection')?.scrollIntoView({ behavior: 'smooth' })
+  }
   const priceFilter = filters.maxPrice != null || filters.minPrice != null
 
   useEffect(() => { if (filters.query) setSearchOpen(true) }, [filters.query])
@@ -155,7 +174,23 @@ function Home({ products, onSelect, saved, onSave, filters, setFilters, cartCoun
       {searchOpen && (
         <div className="search-row">
           <label htmlFor="product-search">Search the collection</label>
-          <input id="product-search" autoFocus value={filters.query} onChange={(event) => setFilters({ ...filters, query: event.target.value })} placeholder="Try “earbuds” or “sunscreen”" />
+          <input id="product-search" type="search" autoFocus value={filters.query}
+            onChange={(event) => setFilters({ ...filters, query: event.target.value })}
+            onKeyDown={(event) => { if (event.key === 'Enter') showResults(); if (event.key === 'Escape') setSearchOpen(false) }}
+            placeholder="Try “earbuds”, “phone” or “face wash”" />
+          {filters.query.trim() && products.status === 'ready' && (
+            <div className="search-results" role="listbox" aria-label="Matching products">
+              {suggestions.map((p) => (
+                <button key={p.id} role="option" aria-selected={false} onClick={() => { setSearchOpen(false); onSelect(p) }}>
+                  {p.image && <img src={p.image} alt="" />}
+                  <span className="search-result-name">{p.name}</span>
+                  <span className="search-result-price">{inr(p.price)}</span>
+                </button>
+              ))}
+              {!suggestions.length && <p className="search-empty">No products match “{filters.query.trim()}”. Try earbuds, phone, speaker, watch, shoes, kurta, face wash or hair dryer.</p>}
+              {shown.length > 0 && <button className="search-all" onClick={showResults}>See all {shown.length} result{shown.length === 1 ? '' : 's'}</button>}
+            </div>
+          )}
         </div>
       )}
       <main>
