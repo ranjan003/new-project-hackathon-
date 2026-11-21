@@ -675,3 +675,6 @@ button.cart-item-image { display: block; padding: 0; }
 
 .price-source { display: block; margin-top: 2px; font-size: 11px; opacity: 0.7; }
 .price-source.live { color: #1f7a4d; opacity: 1; font-weight: 600; }
+
+.compare-summary { margin: 0 0 16px; font-size: 14px; line-height: 1.5; }
+.compare-summary strong { font-weight: 700; }

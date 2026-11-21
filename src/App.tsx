@@ -115,7 +115,7 @@ function ProductShowcase({ product, position, saved, onSave, onSelect }: { produ
         <div>
           <span>{product.eyebrow}</span>
           <h3>{product.name}</h3>
-          <p>★ {product.rating} from {product.reviews.toLocaleString('en-IN')} reviews. Compared with Amazon and Flipkart on price, bank offers, coupons and vouchers.</p>
+          <p>★ {product.rating} from {product.reviews.toLocaleString('en-IN')} reviews. Compared with Amazon, Flipkart and other stores on price, bank offers, coupons and vouchers.</p>
         </div>
         <div className="showcase-action">
           <strong>{inr(product.price)}{off > 0 && <small className="price-off"> {off}% off MRP</small>}</strong>
@@ -162,7 +162,7 @@ function Home({ products, onSelect, saved, onSave, filters, setFilters, cartCoun
         <section className="hero">
           <p className="kicker">One search. Every good choice.</p>
           <h1>Objects worth<br /><em>considering.</em></h1>
-          <p className="hero-copy">We compare Amazon and Flipkart for you, offers included, so you can buy here with confidence.</p>
+          <p className="hero-copy">We compare Amazon, Flipkart and other stores for you, offers included, so you can buy here with confidence.</p>
           <button className="round-link" onClick={() => document.getElementById('collection')?.scrollIntoView({ behavior: 'smooth' })} aria-label="Explore collection"><Icon name="arrow" /></button>
           <span className="edition">EDIT / 001<br />NOVEMBER 2026</span>
         </section>
@@ -268,7 +268,7 @@ function ProductPage({ product, focusCompare, onBack, saved, onSave, onBuy }: { 
   const stats: [string, string][] = [[`${product.rating}★`, 'Rating'], [off ? `${off}%` : compact(product.reviews), off ? 'Off MRP' : 'Reviews']]
   const features = product.features.length >= 2 ? product.features : [
     { title: 'Every offer, side by side.', description: 'Bank offers, coupons and vouchers from each store are listed below, not just the sticker price.' },
-    { title: 'Compare there. Buy here.', description: 'Amazon and Flipkart are shown for comparison only. You check out securely on Neutags.' },
+    { title: 'Compare there. Buy here.', description: 'Other stores are shown for comparison only. You check out securely on Neutags.' },
   ]
   const materials = product.materials.length ? product.materials.map((m) => [m.label, m.value] as [string, string]) : [
     ['Brand', product.brand], ['Type', product.subcategory], ['MRP', product.mrp ? inr(product.mrp) : '—'],
@@ -351,6 +351,15 @@ function ProductPage({ product, focusCompare, onBack, saved, onSave, onBuy }: { 
           {offers.status === 'loading' && <StatusBlock title="Checking prices…" />}
           {offers.status === 'error' && <StatusBlock title="The comparison didn't load." message={offers.message} onRetry={load} />}
           {offers.status === 'ready' && !list.length && <StatusBlock title="No prices yet." message="We haven't checked prices for this product yet." />}
+          {list.length > 1 && (() => {
+            const byPrice = [...list].sort((a, b) => a.effectivePrice - b.effectivePrice)
+            const best = byPrice[0], worst = byPrice[byPrice.length - 1]
+            return (
+              <p className="compare-summary">
+                Across {list.length} stores: lowest <strong>{inr(best.effectivePrice)}</strong> at {best.retailer.name}, highest {inr(worst.effectivePrice)} at {worst.retailer.name}. Difference {inr(worst.effectivePrice - best.effectivePrice)}.
+              </p>
+            )
+          })()}
           {list.length > 0 && (
             <div className="equal-offers" aria-label={`Store comparison for ${product.name}`}>
               <div className="equal-offers-head">
@@ -379,7 +388,7 @@ function ProductPage({ product, focusCompare, onBack, saved, onSave, onBuy }: { 
               ))}
             </div>
           )}
-          <p className="price-note">Amazon and Flipkart prices are shown for comparison only. You can buy only on Neutags. Bank offers depend on your card and are not included in “You pay”. {list[0] ? `Last checked ${new Date(list[0].lastCheckedAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}.` : ''}</p>
+          <p className="price-note">Other stores' prices come from Google Shopping and are shown for comparison only. You can buy only on Neutags. Bank offers depend on your card and are not included in “You pay”. {list[0] ? `Last checked ${new Date(list[0].lastCheckedAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}.` : ''}</p>
         </section>
       </main>
       <footer><span>NEUTAGS.</span><p>Compare clearly. Choose confidently.</p><small>© 2026</small></footer>
