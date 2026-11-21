@@ -678,3 +678,13 @@ button.cart-item-image { display: block; padding: 0; }
 
 .compare-summary { margin: 0 0 16px; font-size: 14px; line-height: 1.5; }
 .compare-summary strong { font-weight: 700; }
+
+.search-row { flex-wrap: wrap; }
+.search-results { flex-basis: 100%; display: grid; gap: 4px; max-height: 60vh; overflow-y: auto; }
+.search-results button { display: flex; align-items: center; gap: 14px; text-align: left; padding: 10px 8px; border-radius: 6px; color: #fff; }
+.search-results button:hover, .search-results button:focus-visible { background: #ffffff1a; }
+.search-results img { width: 44px; height: 44px; object-fit: contain; background: #fff; border-radius: 4px; flex: none; }
+.search-result-name { flex: 1; font-size: 15px; line-height: 1.35; }
+.search-result-price { font-weight: 600; white-space: nowrap; }
+.search-results .search-all { justify-content: center; border: 1px solid #ffffff60; margin-top: 6px; font-weight: 600; }
+.search-empty { padding: 10px 8px; color: #ffffffb3; font-size: 15px; }
