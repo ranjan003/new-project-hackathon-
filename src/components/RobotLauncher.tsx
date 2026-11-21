@@ -10,7 +10,7 @@ const GREETINGS = [
   "Looking for the best price? Just ask me.",
 ];
 
-const DISMISS_KEY = "newtags-assistant-greeting-dismissed";
+const DISMISS_KEY = "neutags-assistant-greeting-dismissed";
 
 type Props = {
   open: boolean;

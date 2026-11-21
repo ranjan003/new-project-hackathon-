@@ -1,10 +1,10 @@
-// SAMPLE customer policies for the AI assistant. Replace with Newtags's real policies.
+// SAMPLE customer policies for the AI assistant. Replace with Neutags's real policies.
 // Put ONLY customer-facing (public) text here. Anything written here can be repeated to customers,
 // so never add internal notes, margins, seller terms, staff contacts or keys.
 
-export const STORE_NAME = "Newtags";
+export const STORE_NAME = "Neutags";
 
-export const SUPPORT_CONTACT = "support@newtags.example · 1800-000-0000 (9 AM to 9 PM, all days)";
+export const SUPPORT_CONTACT = "support@neutags.example · 1800-000-0000 (9 AM to 9 PM, all days)";
 
 export const STORE_POLICIES = `
 RETURNS
@@ -19,7 +19,7 @@ HOW TO RETURN
 
 REFUNDS
 - Card, UPI and net banking: refunded to the original payment method within 5 to 7 working days after the check.
-- Cash on delivery: refunded to your Newtags wallet within 24 hours, or to a bank account you add, within 5 to 7 working days.
+- Cash on delivery: refunded to your Neutags wallet within 24 hours, or to a bank account you add, within 5 to 7 working days.
 - Coupon discounts are not refunded as cash. Bank offer cashback is reversed by the bank if the item is returned.
 
 CANCELLATION

@@ -672,3 +672,6 @@ button.cart-item-image { display: block; padding: 0; }
 .assistant-card-actions button.primary { background: #181815; color: #fff; }
 .assistant-message .assistant-card-actions button { width: auto; }
 @media (max-width: 600px) { .assistant-panel-ai { right: 16px; bottom: 124px; height: min(560px, calc(100svh - 140px)); } }
+
+.price-source { display: block; margin-top: 2px; font-size: 11px; opacity: 0.7; }
+.price-source.live { color: #1f7a4d; opacity: 1; font-weight: 600; }

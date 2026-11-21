@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { fetchCart, fetchOffers, fetchProducts, inr, ownOfferId, setCartItem, type CartQuote, type Offer, type Product } from './lib/api'
+import { fetchCart, fetchOffers, fetchProducts, inr, ownOfferId, refreshPrices, setCartItem, type CartQuote, type Offer, type Product } from './lib/api'
 import ShoppingAssistant from './components/ShoppingAssistant'
 
-// Customers buy ONLY on Newtags. Amazon and Flipkart offers are shown for comparison and never link out.
+// Customers buy ONLY on Neutags. Amazon and Flipkart offers are shown for comparison and never link out.
 
 type View =
   | { name: 'home' }
@@ -60,7 +60,7 @@ const compact = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0
 function Header({ onHome, onSearch, searchOpen, saved, cartCount, onCart }: { onHome: () => void; onSearch: () => void; searchOpen: boolean; saved: number; cartCount: number; onCart: () => void }) {
   return (
     <header className="site-header">
-      <button className="wordmark" onClick={onHome} aria-label="Newtags home">NEWTAGS<span>.</span></button>
+      <button className="wordmark" onClick={onHome} aria-label="Neutags home">NEUTAGS<span>.</span></button>
       <nav aria-label="Primary navigation">
         <button onClick={onHome}>Discover</button>
         <button onClick={() => document.getElementById('collection')?.scrollIntoView({ behavior: 'smooth' })}>Collections</button>
@@ -202,7 +202,7 @@ function Home({ products, onSelect, saved, onSave, filters, setFilters, cartCoun
           <span>Compared clearly. Bought safely, here.</span>
         </section>
       </main>
-      <footer><span>NEWTAGS.</span><p>Good things, found well.</p><small>© 2026</small></footer>
+      <footer><span>NEUTAGS.</span><p>Good things, found well.</p><small>© 2026</small></footer>
     </div>
   )
 }
@@ -235,6 +235,15 @@ function ProductPage({ product, focusCompare, onBack, saved, onSave, onBuy }: { 
   }, [product.id])
   useEffect(load, [load])
 
+  // Ask for live Amazon/Flipkart prices; reload the table only if something changed.
+  useEffect(() => {
+    let alive = true
+    refreshPrices(product.id).then((status) => {
+      if (alive && status === 'updated') fetchOffers(product.id).then((data) => alive && setOffers({ status: 'ready', data }), () => {})
+    })
+    return () => { alive = false }
+  }, [product.id])
+
   useEffect(() => {
     if (gallery.length < 2 || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
     const timer = window.setInterval(() => setHeroFrame((frame) => (frame + 1) % gallery.length), 4600)
@@ -259,7 +268,7 @@ function ProductPage({ product, focusCompare, onBack, saved, onSave, onBuy }: { 
   const stats: [string, string][] = [[`${product.rating}★`, 'Rating'], [off ? `${off}%` : compact(product.reviews), off ? 'Off MRP' : 'Reviews']]
   const features = product.features.length >= 2 ? product.features : [
     { title: 'Every offer, side by side.', description: 'Bank offers, coupons and vouchers from each store are listed below, not just the sticker price.' },
-    { title: 'Compare there. Buy here.', description: 'Amazon and Flipkart are shown for comparison only. You check out securely on Newtags.' },
+    { title: 'Compare there. Buy here.', description: 'Amazon and Flipkart are shown for comparison only. You check out securely on Neutags.' },
   ]
   const materials = product.materials.length ? product.materials.map((m) => [m.label, m.value] as [string, string]) : [
     ['Brand', product.brand], ['Type', product.subcategory], ['MRP', product.mrp ? inr(product.mrp) : '—'],
@@ -269,7 +278,7 @@ function ProductPage({ product, focusCompare, onBack, saved, onSave, onBuy }: { 
     <div className="product-page">
       <header className="detail-header">
         <button className="back-button" onClick={onBack}><Icon name="back" /> Back to edit</button>
-        <button className="wordmark" onClick={onBack}>NEWTAGS<span>.</span></button>
+        <button className="wordmark" onClick={onBack}>NEUTAGS<span>.</span></button>
         <button className={`icon-button ${saved ? 'active' : ''}`} onClick={onSave} aria-label={`${saved ? 'Remove' : 'Save'} ${product.name}`} aria-pressed={saved}><Icon name="heart" /></button>
       </header>
 
@@ -316,7 +325,7 @@ function ProductPage({ product, focusCompare, onBack, saved, onSave, onBuy }: { 
               <span className="feature-index">03</span>
               <strong>{own?.returnsDays ?? '—'}</strong><small>day returns</small>
               <h3>Made for every day.</h3>
-              <p>{own ? `Delivered ${own.deliveryLabel.toLowerCase()}${own.deliveryPrice ? ` for ${inr(own.deliveryPrice)}` : ', free'}, with ${own.returnsDays}-day returns from Newtags.` : 'Delivery and returns details load with the comparison.'}</p>
+              <p>{own ? `Delivered ${own.deliveryLabel.toLowerCase()}${own.deliveryPrice ? ` for ${inr(own.deliveryPrice)}` : ', free'}, with ${own.returnsDays}-day returns from Neutags.` : 'Delivery and returns details load with the comparison.'}</p>
             </div>
             <div className="material-card feature-reveal">
               <p className="kicker">At a glance</p>
@@ -353,7 +362,7 @@ function ProductPage({ product, focusCompare, onBack, saved, onSave, onBuy }: { 
                     <span className="equal-index">{String(index + 1).padStart(2, '0')}</span>
                     <div className="equal-thumb"><ProductImage src={product.image} alt="" /></div>
                     <span className="equal-mark" style={{ color: offer.retailer.brandColor }}>{offer.retailer.mark}</span>
-                    <div><h3>{offer.retailer.name}</h3><small>{offer.retailer.isOwn ? 'Buy here' : 'For comparison only'}</small></div>
+                    <div><h3>{offer.retailer.name}</h3><small>{offer.retailer.isOwn ? 'Buy here' : 'For comparison only'}</small>{!offer.retailer.isOwn && <small className={`price-source ${offer.source === 'google_shopping' ? 'live' : ''}`}>{offer.source === 'google_shopping' ? `Live price · Google Shopping, ${new Date(offer.lastCheckedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}` : 'Sample price'}</small>}</div>
                   </div>
                   <div className="retailer-feature"><Icon name="check" /><div><strong>{offer.retailer.featureTitle}</strong><OfferPerks offer={offer} /></div></div>
                   <div className="equal-rating"><strong>★ {offer.rating ?? '—'}</strong><span>{offer.reviews ? `${compact(offer.reviews)} reviews` : 'Store rating'}</span></div>
@@ -364,16 +373,16 @@ function ProductPage({ product, focusCompare, onBack, saved, onSave, onBuy }: { 
                     {offer.retailer.isOwn && lowestOther != null && offer.effectivePrice < lowestOther && <em className="saving">{inr(lowestOther - offer.effectivePrice)} less than elsewhere</em>}
                   </div>
                   {offer.retailer.isOwn
-                    ? <button onClick={onBuy} aria-label={`Buy ${product.name} on Newtags`}><Icon name="arrow" /></button>
+                    ? <button onClick={onBuy} aria-label={`Buy ${product.name} on Neutags`}><Icon name="arrow" /></button>
                     : <span className="compare-only" aria-label="Comparison only">—</span>}
                 </article>
               ))}
             </div>
           )}
-          <p className="price-note">Amazon and Flipkart prices are shown for comparison only. You can buy only on Newtags. Bank offers depend on your card and are not included in “You pay”. {list[0] ? `Last checked ${new Date(list[0].lastCheckedAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}.` : ''}</p>
+          <p className="price-note">Amazon and Flipkart prices are shown for comparison only. You can buy only on Neutags. Bank offers depend on your card and are not included in “You pay”. {list[0] ? `Last checked ${new Date(list[0].lastCheckedAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}.` : ''}</p>
         </section>
       </main>
-      <footer><span>NEWTAGS.</span><p>Compare clearly. Choose confidently.</p><small>© 2026</small></footer>
+      <footer><span>NEUTAGS.</span><p>Compare clearly. Choose confidently.</p><small>© 2026</small></footer>
     </div>
   )
 }
@@ -411,7 +420,7 @@ function StoreProductPage({ product, cartCount, inCart, onBack, onAdd, onCart }:
     <div className="store-page">
       <header className="commerce-header">
         <button className="back-button" onClick={onBack}><Icon name="back" /> Comparison</button>
-        <span className="wordmark">NEWTAGS<span>.</span></span>
+        <span className="wordmark">NEUTAGS<span>.</span></span>
         <button className="cart-button" onClick={onCart}><Icon name="cart" /> Bag <b>{cartCount}</b></button>
       </header>
       <main className="store-product">
@@ -422,14 +431,14 @@ function StoreProductPage({ product, cartCount, inCart, onBack, onAdd, onCart }:
           </div>
         </div>
         <section className="purchase-panel">
-          <div className="retailer-chip"><span style={{ color: '#d94b24' }}>N</span> Sold by Newtags</div>
+          <div className="retailer-chip"><span style={{ color: '#d94b24' }}>N</span> Sold by Neutags</div>
           <p className="kicker">{product.category} / {soldOut ? 'Out of stock' : o?.stock === 'low_stock' ? 'Only a few left' : 'In stock'}</p>
           <h1>{product.name}</h1>
           <p className="purchase-subtitle">{product.eyebrow}</p>
           <div className="purchase-rating"><span>★ {product.rating}</span> <u>{product.reviews.toLocaleString('en-IN')} verified reviews</u></div>
           {offer.status === 'loading' && <StatusBlock title="Loading price…" />}
           {offer.status === 'error' && <StatusBlock title="The price didn't load." message={offer.message} onRetry={load} />}
-          {offer.status === 'ready' && !o && <StatusBlock title="Not sold here yet." message="This product is listed for comparison, but Newtags doesn't sell it yet." />}
+          {offer.status === 'ready' && !o && <StatusBlock title="Not sold here yet." message="This product is listed for comparison, but Neutags doesn't sell it yet." />}
           {o && (
             <>
               <div className="purchase-price">
@@ -439,7 +448,7 @@ function StoreProductPage({ product, cartCount, inCart, onBack, onAdd, onCart }:
               {(o.bankOffers.length > 0 || o.coupons.length > 0 || o.vouchers.length > 0) && (
                 <div className="retailer-benefit">
                   <span style={{ color: '#d94b24' }}>%</span>
-                  <div><small>Offers on Newtags</small><strong>{o.couponSaving ? `${inr(o.price - o.couponSaving)} after coupon` : 'Save more with these'}</strong><OfferPerks offer={o} /></div>
+                  <div><small>Offers on Neutags</small><strong>{o.couponSaving ? `${inr(o.price - o.couponSaving)} after coupon` : 'Save more with these'}</strong><OfferPerks offer={o} /></div>
                 </div>
               )}
               <div className="delivery-box"><Icon name="check" /><div><strong>{o.deliveryPrice ? `${inr(o.deliveryPrice)} delivery` : 'Free delivery'} · {o.deliveryLabel}</strong><span>{o.returnsDays}-day returns with free pickup</span></div></div>
@@ -454,7 +463,7 @@ function StoreProductPage({ product, cartCount, inCart, onBack, onAdd, onCart }:
           <div className="product-accordions">
             <details open><summary>Product details</summary><p>{product.description}</p></details>
             <details><summary>Specifications</summary><p>Brand: {product.brand} · Type: {product.subcategory}{product.stats.map((s) => ` · ${s.label}: ${s.value}`).join('')}</p></details>
-            <details><summary>Delivery & returns</summary><p>{o ? `Delivered ${o.deliveryLabel.toLowerCase()} by Newtags. Return within ${o.returnsDays} days of delivery; pickup is free.` : 'Shown once the price loads.'}</p></details>
+            <details><summary>Delivery & returns</summary><p>{o ? `Delivered ${o.deliveryLabel.toLowerCase()} by Neutags. Return within ${o.returnsDays} days of delivery; pickup is free.` : 'Shown once the price loads.'}</p></details>
           </div>
         </section>
       </main>
@@ -477,7 +486,7 @@ function CartPage({ cart, onBack, onQuantity, onRetry, onOpen }: { cart: Load<Ca
     <div className="cart-page">
       <header className="commerce-header">
         <button className="back-button" onClick={onBack}><Icon name="back" /> Continue shopping</button>
-        <span className="wordmark">NEWTAGS<span>.</span></span>
+        <span className="wordmark">NEUTAGS<span>.</span></span>
         <span className="secure-label">Secure checkout</span>
       </header>
       <main className="cart-main">
@@ -492,7 +501,7 @@ function CartPage({ cart, onBack, onQuantity, onRetry, onOpen }: { cart: Load<Ca
             <article className="cart-item" key={item.offerId}>
               <button className="cart-item-image" onClick={() => onOpen(item.productId)} aria-label={`Open ${item.productName}`}><ProductImage src={item.imageUrl ?? ''} alt={item.productName} /></button>
               <div className="cart-item-info">
-                <small>Sold by Newtags{!item.available && ' · Now out of stock'}</small>
+                <small>Sold by Neutags{!item.available && ' · Now out of stock'}</small>
                 <h2>{item.productName}</h2>
                 <p>{inr(item.unitPrice)} each</p>
                 <button disabled={busy === item.offerId} onClick={() => change(item.offerId, 0)}>Remove</button>
@@ -529,7 +538,7 @@ export default function App() {
   const [cart, setCart] = useState<Load<CartQuote>>({ status: 'loading' })
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS)
   const [saved, setSaved] = useState<string[]>(() => {
-    try { return JSON.parse(localStorage.getItem('newtags-saved') || '[]') as string[] } catch { return [] }
+    try { return JSON.parse(localStorage.getItem('neutags-saved') || '[]') as string[] } catch { return [] }
   })
 
   const loadProducts = useCallback(() => {
@@ -538,7 +547,7 @@ export default function App() {
   }, [])
   const loadCart = useCallback(() => fetchCart().then((data) => setCart({ status: 'ready', data }), (e: Error) => setCart({ status: 'error', message: e.message })), [])
   useEffect(() => { loadProducts(); loadCart() }, [loadProducts, loadCart])
-  useEffect(() => { try { localStorage.setItem('newtags-saved', JSON.stringify(saved)) } catch { /* storage can be unavailable */ } }, [saved])
+  useEffect(() => { try { localStorage.setItem('neutags-saved', JSON.stringify(saved)) } catch { /* storage can be unavailable */ } }, [saved])
 
   const byId = useMemo(() => new Map(products.status === 'ready' ? products.data.map((p) => [p.id, p]) : []), [products])
   const go = (next: View) => { setView(next); window.scrollTo({ top: 0 }) }
