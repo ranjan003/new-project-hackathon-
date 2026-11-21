@@ -1,4 +1,4 @@
-// Newtags AI shopping assistant: Gemini runs in the Supabase Edge Function "assistant".
+// Neutags AI shopping assistant: Gemini runs in the Supabase Edge Function "assistant".
 // Customers type or speak (browser Web Speech API). The assistant can only do safe customer
 // actions: open a product, open the comparison, search, open the bag, add to bag. No checkout or payment.
 
@@ -150,11 +150,11 @@ export default function ShoppingAssistant({ path, onOpenProduct, onNavigate, onS
   return (
     <>
       {open && (
-        <section className="assistant-panel assistant-panel-ai" role="dialog" aria-label="Newtags shopping assistant">
+        <section className="assistant-panel assistant-panel-ai" role="dialog" aria-label="Neutags shopping assistant">
           <header>
             <div>
               <img src={ROBOT_SRC} alt="" className="assistant-avatar" />
-              <p><strong>Newtags guide</strong><small>Type or talk: products, bag, returns</small></p>
+              <p><strong>Neutags guide</strong><small>Type or talk: products, bag, returns</small></p>
             </div>
             <div className="assistant-tools">
               {voiceSupported && (
@@ -196,7 +196,7 @@ export default function ShoppingAssistant({ path, onOpenProduct, onNavigate, onS
             <input value={input} onChange={(e) => setInput(e.target.value)} maxLength={500} placeholder={listening ? 'Listening…' : 'Describe what you need…'} aria-label="Ask the shopping assistant" />
             <button disabled={loading || !input.trim()} aria-label="Send">→</button>
           </form>
-          <small className="assistant-note">Answers only about Newtags products and policies. Never share card numbers, OTP or UPI PIN.</small>
+          <small className="assistant-note">Answers only about Neutags products and policies. Never share card numbers, OTP or UPI PIN.</small>
         </section>
       )}
 

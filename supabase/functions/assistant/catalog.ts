@@ -18,7 +18,7 @@ export type Product = {
   brand: string;
   category: Category;
   subcategory: string;
-  price: number; // our price (Newtags), INR
+  price: number; // our price (Neutags), INR
   mrp: number;
   rating: number;
   reviews: number;

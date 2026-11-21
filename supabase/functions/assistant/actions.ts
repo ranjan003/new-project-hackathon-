@@ -1,4 +1,4 @@
-// Customer-side actions the assistant may trigger. They map to the Newtags app's real views:
+// Customer-side actions the assistant may trigger. They map to the Neutags app's real views:
 // home (with search filters), product page, comparison section, bag. Nothing else.
 //
 // Deliberately NOT here: checkout, payment, placing or cancelling orders, account changes,

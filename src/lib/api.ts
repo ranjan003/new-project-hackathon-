@@ -34,6 +34,7 @@ export type Offer = {
   coupons: Coupon[]
   vouchers: Voucher[]
   lastCheckedAt: string
+  source: 'sample' | 'google_shopping' | 'manual'
   /** price after the best coupon anyone can use, plus delivery. Bank offers are excluded: they depend on the card. */
   effectivePrice: number
   couponSaving: number
@@ -148,7 +149,7 @@ function couponValue(c: Coupon, price: number) {
 type OfferRow = {
   id: string; product_id: string; price_amount: number; mrp_amount: number | null; rating: number | null; review_count: number
   delivery_label: string | null; delivery_days: number | null; delivery_price_amount: number; stock: Offer['stock']
-  returns_days: number | null; bank_offers: BankOffer[]; coupons: Coupon[]; vouchers: Voucher[]; last_checked_at: string
+  returns_days: number | null; bank_offers: BankOffer[]; coupons: Coupon[]; vouchers: Voucher[]; last_checked_at: string; source: Offer['source']
   retailers: { id: string; name: string; mark: string; brand_color: string; feature_title: string | null; feature_description: string | null; is_own: boolean }
 }
 
@@ -156,7 +157,7 @@ export async function fetchOffers(productId: string): Promise<Offer[]> {
   ensureConfigured()
   const { data, error } = await supabase
     .from('offers')
-    .select('id,product_id,price_amount,mrp_amount,rating,review_count,delivery_label,delivery_days,delivery_price_amount,stock,returns_days,bank_offers,coupons,vouchers,last_checked_at,retailers(id,name,mark,brand_color,feature_title,feature_description,is_own)')
+    .select('id,product_id,price_amount,mrp_amount,rating,review_count,delivery_label,delivery_days,delivery_price_amount,stock,returns_days,bank_offers,coupons,vouchers,last_checked_at,source,retailers(id,name,mark,brand_color,feature_title,feature_description,is_own)')
     .eq('product_id', productId)
   if (error) friendly(error, 'We could not load the price comparison. Please try again.')
   return (data as unknown as OfferRow[]).map((o) => {
@@ -188,15 +189,30 @@ export async function fetchOffers(productId: string): Promise<Offer[]> {
       coupons: o.coupons ?? [],
       vouchers: o.vouchers ?? [],
       lastCheckedAt: o.last_checked_at,
+      source: o.source ?? 'sample',
       couponSaving,
       effectivePrice: price - couponSaving + deliveryPrice,
     }
   })
 }
 
+// ---- Live prices: asks the `prices` Edge Function to refresh Amazon/Flipkart from Google Shopping.
+// The function caches (once a day per product) so this is cheap to call on every product view.
+export type RefreshStatus = 'updated' | 'fresh' | 'quota' | 'no_match' | 'not_configured' | 'error'
+export async function refreshPrices(productId: string): Promise<RefreshStatus> {
+  if (!supabaseConfigured) return 'not_configured'
+  try {
+    const { data, error } = await supabase.functions.invoke('prices', { body: { productId } })
+    if (error) return 'error'
+    return (data?.status as RefreshStatus) ?? 'error'
+  } catch {
+    return 'error'
+  }
+}
+
 // ---- Cart (server-side, keyed by a random token kept in this browser) ----
 
-const TOKEN_KEY = 'newtags-cart-token'
+const TOKEN_KEY = 'neutags-cart-token'
 let memoryToken: string | null = null
 
 export function cartToken(): string {
