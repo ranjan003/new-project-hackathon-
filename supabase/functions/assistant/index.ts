@@ -25,8 +25,10 @@ function rateLimited(ip: string) {
   return recent.length > 20;
 }
 
-const MODEL = "gemini-2.5-flash";
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
+// gemini-2.5-flash is closed to new API keys. Try these in order (override with GEMINI_MODEL); a busy or
+// unavailable model falls through to the next, ending with Flash-Lite, which is fast and rarely busy.
+const MODELS = [Deno.env.get("GEMINI_MODEL"), "gemini-3.5-flash", "gemini-flash-latest", "gemini-flash-lite-latest", "gemini-3.1-flash-lite"].filter(Boolean) as string[];
+const geminiUrl = (model: string) => `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 const MAX_HISTORY = 12; // keep requests small on the free tier
 const MAX_MSG_CHARS = 500;
 
@@ -179,7 +181,7 @@ async function handle(req: Request): Promise<Response> {
   const ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || "unknown";
   if (rateLimited(ip)) return json({ error: "I'm getting a lot of questions right now. Please try again in a minute." }, 429);
 
-  const apiKey = Deno.env.get("GEMINI_API_KEY");
+  const apiKey = Deno.env.get("GEMINI_API_KEY") ?? Deno.env.get("geminikey"); // "geminikey" is the name used in the dashboard
   if (!apiKey) return json({ error: "The assistant isn't set up yet." }, 500);
 
   let messages: ChatMessage[];
@@ -217,25 +219,33 @@ async function handle(req: Request): Promise<Response> {
   const viewingId = productIdFromPath(path);
   const viewing = viewingId ? byId.get(viewingId) ?? null : null;
 
-  let res: Response;
-  try {
-    res = await fetch(GEMINI_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: systemPrompt(catalog, viewing) }] },
-        contents: messages.map((m) => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.text }] })),
-        generationConfig: {
-          temperature: 0.3,
-          responseMimeType: "application/json",
-          responseSchema,
-          thinkingConfig: { thinkingBudget: 0 }, // faster replies for chat
-        },
-      }),
-    });
-  } catch {
-    return json({ error: "Sorry, I couldn't connect just now. Please try again." }, 502);
+  const bodyFor = (model: string) => JSON.stringify({
+    systemInstruction: { parts: [{ text: systemPrompt(catalog, viewing) }] },
+    contents: messages.map((m) => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.text }] })),
+    generationConfig: {
+      temperature: 0.3, responseMimeType: "application/json", responseSchema,
+      // Keep "thinking" short so chat replies come back in a few seconds.
+      thinkingConfig: /gemini-2\./.test(model) ? { thinkingBudget: 0 } : { thinkingLevel: "low" },
+    },
+  });
+  let res: Response | null = null;
+  for (const model of MODELS) {
+    const started = Date.now();
+    try {
+      res = await fetch(geminiUrl(model), {
+        method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey }, body: bodyFor(model), signal: AbortSignal.timeout(12_000),
+      });
+    } catch (e) {
+      console.error("Gemini request failed", model, String(e).slice(0, 120));
+      res = null;
+      continue; // timeout or network error: try the next model
+    }
+    console.log("Gemini", model, res.status, `${Date.now() - started}ms`);
+    if (res.ok || res.status === 403) break;
+    // 400/404 = model or option not available to this key; 429/5xx = busy. Either way, try the next model.
+    console.error("Gemini model skipped", model, res.status, (await res.text().catch(() => "")).slice(0, 200));
   }
+  if (!res) return json({ error: "Sorry, I couldn't answer just now. Please try again." }, 502);
 
   if (!res.ok) {
     console.error("Gemini error", res.status, await res.text().catch(() => "")); // server log only, never sent to the customer

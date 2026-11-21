@@ -23,6 +23,24 @@ pnpm dev               # http://localhost:5173
 
 Rules built in: customers buy **only** on Neutags. Amazon / Flipkart rows are comparison-only, with no outbound links and no buy button. The assistant can open products, open the comparison, search, open the bag and add to bag, and nothing beyond that (no checkout or payment).
 
+## Real catalogue from Google Shopping
+
+The Edge Function `catalog-import` builds the catalogue from Google Shopping (SerpApi). For each queued search it
+takes the most-reviewed products, opens each product's Google page and saves every store's price, rating, delivery and
+bank/coupon offers (Amazon, Flipkart, Croma, Reliance Digital and whichever other stores Google lists). Store links
+are not saved. The Neutags price is set 2% below the lowest store price (`PRICE_RULE` in the function).
+
+Add searches in the Supabase SQL editor, then call the function once per job:
+
+```sql
+insert into import_jobs (query, category, max_products) values ('wireless earbuds', 'electronics', 3);
+select net.http_post(url := 'https://ommccsylnvterlfpqpau.supabase.co/functions/v1/catalog-import',
+                     body := '{}'::jsonb, headers := '{"Content-Type":"application/json"}'::jsonb);
+```
+
+Each job uses 1 + `max_products` SerpApi searches, and the function stops after 12 jobs a day. Calling it with no
+pending job does nothing. The AI assistant reads the same tables, so it recommends the imported products automatically.
+
 ## Live Amazon and Flipkart prices
 
 The Edge Function `prices` looks up a product on Google Shopping (SerpApi) when someone opens its page, and saves the

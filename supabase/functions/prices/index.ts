@@ -7,6 +7,9 @@
 //   the whole site makes at most DAILY_CAP lookups a day, to stay inside SerpApi's free quota.
 // - Store links are NOT saved: customers buy only on Neutags, other stores are comparison-only.
 
+// Accepts the names the secret was saved under in the dashboard ("serpi api" is the current one).
+const serpKey = () => Deno.env.get("SERPAPI_KEY") ?? Deno.env.get("serpi api") ?? Deno.env.get("SERPI_API") ?? Deno.env.get("serpapi");
+
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -63,7 +66,7 @@ Deno.serve(async (req) => {
   } catch { /* handled below */ }
   if (!/^[\w-]+$/.test(productId)) return json({ error: "Invalid product." }, 400);
 
-  const apiKey = Deno.env.get("SERPAPI_KEY");
+  const apiKey = serpKey();
   if (!apiKey) return json({ status: "not_configured" });
 
   try {
