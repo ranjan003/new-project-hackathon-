@@ -179,7 +179,7 @@ async function handle(req: Request): Promise<Response> {
   const ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || "unknown";
   if (rateLimited(ip)) return json({ error: "I'm getting a lot of questions right now. Please try again in a minute." }, 429);
 
-  const apiKey = Deno.env.get("GEMINI_API_KEY");
+  const apiKey = Deno.env.get("GEMINI_API_KEY") ?? Deno.env.get("geminikey"); // "geminikey" is the name used in the dashboard
   if (!apiKey) return json({ error: "The assistant isn't set up yet." }, 500);
 
   let messages: ChatMessage[];

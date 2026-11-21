@@ -13,6 +13,9 @@
 // - Neutags price = 2% below the lowest store price found (a hackathon pricing rule, change PRICE_RULE).
 // - SERPAPI_KEY is a Supabase secret, never in the browser.
 
+// Accepts the names the secret was saved under in the dashboard ("serpi api" is the current one).
+const serpKey = () => Deno.env.get("SERPAPI_KEY") ?? Deno.env.get("serpi api") ?? Deno.env.get("SERPI_API") ?? Deno.env.get("serpapi");
+
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -60,7 +63,7 @@ const stripLinks = (t: string) => t.replace(/https?:\/\/\S+|www\.\S+/gi, "").tri
 
 // ---- SerpApi ----
 async function serp(params: Record<string, string>) {
-  const apiKey = Deno.env.get("SERPAPI_KEY")!;
+  const apiKey = serpKey()!;
   const qs = new URLSearchParams({ ...params, gl: "in", hl: "en", api_key: apiKey });
   const res = await fetch(`https://serpapi.com/search.json?${qs}`);
   const data = await res.json().catch(() => ({}));
@@ -139,16 +142,20 @@ async function runJob(job: Job) {
     (l: Listing) => l.title && typeof l.extracted_price === "number" && l.extracted_price > 0 && (l.immersive_product_page_token || l.product_id),
   );
 
-  // Most-reviewed first, one per distinct product title.
-  const seen = new Set<string>();
-  const picked = listings
+  // Most-reviewed first, one per model (first three words, e.g. "realme buds t310"), skipping models already in the catalogue.
+  const modelKey = (t: unknown) => normalize(t).split(" ").slice(0, 3).join(" ");
+  const existing: { name: string }[] = await db("products?select=name&source=eq.google_shopping&is_active=eq.true");
+  const seen = new Set<string>(existing.map((p) => modelKey(p.name)));
+  const candidates = listings
     .slice(0, 30)
     .sort((a, b) => (b.reviews ?? 0) - (a.reviews ?? 0))
-    .filter((l) => { const k = normalize(l.title).split(" ").slice(0, 6).join(" "); if (seen.has(k)) return false; seen.add(k); return true; })
-    .slice(0, job.max_products);
+    .filter((l) => { const k = modelKey(l.title); if (seen.has(k)) return false; seen.add(k); return true; });
 
   const saved: { id: string; name: string; stores: number }[] = [];
-  for (const l of picked) {
+  let attempts = 0;
+  for (const l of candidates) {
+    if (saved.length >= job.max_products || attempts >= job.max_products + 2) break; // cap SerpApi searches per job
+    attempts++;
     let page: Awaited<ReturnType<typeof productPage>>;
     try { page = await productPage(l); calls++; } catch (e) { console.error("product page", e); continue; }
 
@@ -162,7 +169,7 @@ async function runJob(job: Job) {
       const prev = byRetailer.get(rid);
       if (!prev || price < (num(prev.extracted_price) ?? num(prev.price) ?? Infinity)) byRetailer.set(rid, { ...s, extracted_price: price });
     }
-    if (!byRetailer.size) continue;
+    if (byRetailer.size < 2) continue; // a comparison needs at least two other stores
 
     const title = String(page.info.title ?? l.title).replace(/\s+/g, " ").trim().slice(0, 140);
     const externalRef = `gs:${normalize(title).slice(0, 100)}`;
@@ -228,7 +235,7 @@ async function runJob(job: Job) {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ error: "Method not allowed." }, 405);
-  if (!Deno.env.get("SERPAPI_KEY")) return json({ status: "not_configured" });
+  if (!serpKey()) return json({ status: "not_configured" });
 
   const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
   const today = await db(`import_jobs?select=id&status=in.(done,error)&finished_at=gte.${since}`);
